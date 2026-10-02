@@ -26,15 +26,15 @@ export default {
       if (url.pathname === '/api/catalog/books') return wrap(await books(env.DB, url.searchParams.get('section'), url.searchParams.get('q')));
       if (url.pathname === '/api/feed') return wrap(await feed(env.DB, await currentUser(env, req), url.searchParams.get('limit')));
       if (url.pathname === '/api/admin/flags') {
-        if (!isAdmin(req, env)) return json({ error: 'unauthorized' }, 401);
+        if (!isAdmin(req, env)) return json({ error: 'not_found' }, 404);
         if (req.method === 'GET') { const { results } = await env.DB.prepare('SELECT key,enabled,config_json FROM feature_flags ORDER BY key').all(); return json(results); }
         if (req.method === 'POST') { const b = await req.json(); await setFlag(env.DB, 'admin', b.key, !!b.enabled, b.config); return json({ ok: true }); }
       }
       if (url.pathname === '/api/auth/register' && req.method === 'POST') return wrap(await register(env, await req.json()));
       if (url.pathname === '/api/contact' && req.method === 'POST') return wrap(await contact(env, req, await req.json()));
-      if (url.pathname === '/api/admin/users' && req.method === 'GET') { if (!isAdmin(req, env)) return json({ error: 'unauthorized' }, 401); return wrap(await adminListUsers(env, url)); }
+      if (url.pathname === '/api/admin/users' && req.method === 'GET') { if (!isAdmin(req, env)) return json({ error: 'not_found' }, 404); return wrap(await adminListUsers(env, url)); }
       const dm = url.pathname.match(/^\/api\/admin\/users\/([\w-]+)$/);
-      if (dm && req.method === 'DELETE') { if (!isAdmin(req, env)) return json({ error: 'unauthorized' }, 401); return wrap(await adminDeleteUser(env, dm[1])); }
+      if (dm && req.method === 'DELETE') { if (!isAdmin(req, env)) return json({ error: 'not_found' }, 404); return wrap(await adminDeleteUser(env, dm[1])); }
       return json({ error: 'not_found' }, 404);
     } catch (e) {
       if (e instanceof Response) return new Response(e.body, { status: e.status, headers: { 'content-type': 'application/json', ...cors } });

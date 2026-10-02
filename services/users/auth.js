@@ -70,10 +70,17 @@ export async function googleLogin(env, body) {
   if (u?.banned) return json({ error: 'banned' }, 403);
   if (!u) {
     await requireFlag(env.DB, 'signups');
-    if (!validNick(body.nickname)) return json({ error: 'nickname_required' }, 400);
+    const chosen = validNick(body.nickname) ? body.nickname.trim() : null;
+    const clean = x => String(x || '').replace(/[<>@\/\\]/g, '').trim();
+    const base = (chosen || clean(t.name) || clean(t.given_name) || 'משתמש').slice(0, 24);
     const id = crypto.randomUUID();
-    try { await env.DB.prepare("INSERT INTO users(id,email,nickname,auth_kind,created_at) VALUES(?,?,?,'google',?)").bind(id, email, body.nickname.trim(), Date.now()).run(); }
-    catch { return json({ error: 'nickname_taken' }, 409); }
+    let ok = false;
+    for (let i = 0; i < 6 && !ok; i++) {
+      const nick = i === 0 ? base : base.slice(0, 20) + ' ' + (1 + Math.floor(Math.random() * 999));
+      if (chosen && i > 0) return json({ error: 'nickname_taken' }, 409);
+      try { await env.DB.prepare("INSERT INTO users(id,email,nickname,auth_kind,created_at) VALUES(?,?,?,'google',?)").bind(id, email, nick, Date.now()).run(); ok = true; } catch {}
+    }
+    if (!ok) return json({ error: 'nickname_taken' }, 409);
     u = { id };
   }
   return json({ ok: true, token: await newSession(env, u.id) });

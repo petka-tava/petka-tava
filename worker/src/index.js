@@ -6,6 +6,7 @@ import { register, contact, adminListUsers, adminDeleteUser } from '../../servic
 import { stats as pStats, listContacts as pContacts, replyContact as pReply, setSetting as pSet } from '../../services/admin/panel.js';
 import { handle as consoleHandle, isAdmin as isAdminAsync, notifyPending, ADMIN_MAIL, consolePath, mintSession } from '../../services/admin/console.js';
 import * as C from '../../services/content/content.js';
+import { shabbatStatus } from '../../services/shabbat/shabbat.js';
 import { feed } from '../../services/feed/feed.js';
 const wrap = r => new Response(r.body, { status: r.status, headers: { 'content-type': 'application/json', ...cors } });
 
@@ -14,14 +15,39 @@ const cors = { 'access-control-allow-origin': ORIGIN, 'access-control-allow-head
 const json = (o, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { 'content-type': 'application/json', ...cors } });
 
 
+const isProductAccount = async (env, req) => {
+  const u = await currentUser(env, req); if (!u) return false;
+  const row = await env.DB.prepare('SELECT email FROM users WHERE id=?').bind(u.id).first();
+  return !!row && String(row.email || '').toLowerCase() === ADMIN_MAIL;
+};
+
 export default {
   async fetch(req, env, ctx) {
     const url = new URL(req.url);
     if (req.method === 'OPTIONS') return new Response(null, { headers: cors });
     const isAdmin = async (rq, e) => isAdminAsync(rq, e);
     { const ch = await consoleHandle(req, env, url); if (ch) return ch; }
+    // Shabbat / yom tov lock: everything except health, the status check and the product account's own session is closed.
+    try {
+      const P0 = url.pathname;
+      if (P0.startsWith('/api/') && P0 !== '/api/health' && P0 !== '/api/shabbat/status' && P0 !== '/api/auth/logout') {
+        const st = await shabbatStatus(env.DB);
+        if (st.locked && !(await isAdmin(req, env)) && !(await isProductAccount(env, req))) {
+          let ok = false;
+          if ((P0 === '/api/auth/email/start' || P0 === '/api/auth/email/verify') && req.method === 'POST') { const b = await req.clone().json().catch(() => ({})); ok = String(b.email || '').trim().toLowerCase() === ADMIN_MAIL; }
+          else if (P0 === '/api/auth/google' && req.method === 'POST') { const b = await req.clone().json().catch(() => ({})); const t = await fetch('https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(b.id_token || '')).then(r => r.json()).catch(() => ({})); ok = String(t.email || '').toLowerCase() === ADMIN_MAIL; }
+          if (!ok) return json({ error: 'shabbat', until: st.until || null }, 503);
+        }
+      }
+    } catch {}
     try {
       if (url.pathname === '/api/health') return json({ ok: true });
+      if (url.pathname === '/api/shabbat/status') {
+        const at = url.searchParams.get('at'); const ms = at && await isAdmin(req, env) ? Date.parse(at) : Date.now();
+        const st = await shabbatStatus(env.DB, ms);
+        if (st.locked && (await isAdmin(req, env) || await isProductAccount(env, req))) return json({ locked: false });
+        return json({ locked: !!st.locked, until: st.until || null });
+      }
       if (url.pathname === '/api/recording/limits') { const r = await recordingLimits(env.DB); return new Response(r.body, { headers: { 'content-type': 'application/json', ...cors } }); }
       if (url.pathname === '/api/auth/email/start' && req.method === 'POST') return wrap(await emailStart(env, await req.json()));
       if (url.pathname === '/api/auth/email/verify' && req.method === 'POST') return wrap(await emailVerify(env, await req.json()));

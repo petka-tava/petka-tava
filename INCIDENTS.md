@@ -26,3 +26,18 @@ Permanent rule (owner, 2/10): whenever anything goes wrong in a build (security 
 - Issue: the telephony provider's voicemail email includes the caller's raw phone number.
 - Fix (decided by owner): keep only a salted hash for matching users, drop the raw number after matching, delete processed emails/recordings after import, play a recording notice at call start (Israeli law).
 - Guideline: collect the minimum personal data; hash identifiers that are only needed for matching; always notify the recorded party.
+
+## 2026-10-02 transcription hallucination on non-speech audio
+- Issue: Whisper returned a confident Hebrew sentence for a pure test tone.
+- Fix: transcripts are always editable before submission; submission requires explicit user action; UI warns that the transcript is automatic.
+- Guideline: never auto-publish machine transcripts; keep a human edit step and a moderation step.
+
+## 2026-10-02 deploy appears not to take effect
+- Issue: after `wrangler deploy` the old responses were served for up to a minute.
+- Fix: waited and retested (edge propagation), not redeployed blindly.
+- Guideline: wait 30-60s and retest with a cache-busting query before assuming a deploy failed.
+
+## 2026-10-02 email-link actions and mail scanners
+- Issue: one-click approve links in email can be triggered by link scanners/prefetch.
+- Fix: the link opens a confirm page (GET) and only a POST changes anything; links are HMAC-signed and any bad signature returns 404.
+- Guideline: state changes never happen on GET.

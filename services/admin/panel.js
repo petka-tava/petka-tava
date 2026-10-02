@@ -39,8 +39,8 @@ export async function replyContact(env, b) {
   return json({ ok: true });
 }
 // Only these keys can be edited from the console; numeric config values are bounded.
-const LIMITS = { max_seconds: [10, 600], max_bytes: [100000, 5000000], daily_cap_per_user: [1, 100], days: [1, 365], daily_cap: [1, 450], per_hour: [1, 50], max_items: [1, 50], codes_per_hour: [1, 20] };
-const KEYS = ['recording', 'comments', 'signups', 'contact_form', 'shabbat_mode', 'audio_retention', 'auto_approve', 'login_google', 'login_email', 'email_notifications', 'reactions', 'guest_taste', 'daily_page', 'dedications', 'signup_manual', 'ivr', 'mass_email'];
+const LIMITS = { max_seconds: [10, 600], max_bytes: [100000, 5000000], daily_cap_per_user: [1, 100], days: [1, 365], daily_cap: [1, 450], per_hour: [1, 50], max_items: [1, 50], daily_cap_global: [1, 1000], codes_per_hour: [1, 20] };
+const KEYS = ['recording', 'comments', 'signups', 'contact_form', 'shabbat_mode', 'transcription', 'audio_retention', 'auto_approve', 'login_google', 'login_email', 'email_notifications', 'reactions', 'guest_taste', 'daily_page', 'dedications', 'signup_manual', 'ivr', 'mass_email'];
 export async function setSetting(env, b) {
   if (!KEYS.includes(b.key)) return json({ error: 'invalid_key' }, 400);
   const cfg = {};

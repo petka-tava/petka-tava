@@ -51,3 +51,9 @@ Permanent rule (owner, 2/10): whenever anything goes wrong in a build (security 
 - Risk: a client-side admin flag would leak the console path or be spoofable.
 - Control: GET /api/me/extras checks the session's email server-side; everyone else gets the same 404 as an unknown route. Public pages contain no admin wording; the link is built from the server response and only for the API origin.
 - Prevention: the handoff session is short-lived (12h) and passed in the URL fragment, which is never sent to servers and is cleared on load.
+
+## Visible control that did nothing (standing guideline)
+- Issue: the Shabbat-mode setting was shown in the settings screen but no code read it, so it looked active and did nothing. Found when the owner asked what it does.
+- Fix: audit of every site button/link and every setting. All site controls are wired and no link is dead. Every setting is read by server code except Shabbat mode, which now says so on screen until the owner chooses what to build. Two enforced features that had no setting (transcription cap, guest taste) now have one.
+- Guideline (permanent, all projects): never ship mock-up or dead buttons, toggles or settings. Anything visible is fully working or does not exist, unless the owner explicitly asked for or approved a placeholder.
+- Prevention: before each release, check every visible control against its server-side or handler code.

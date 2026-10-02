@@ -14,7 +14,7 @@ Static, no-build Hebrew RTL pages for GitHub Pages. No runtime package dependenc
 - Guest feed reads `/api/feed`; signed-in feed sends the Bearer token. No personalized feed endpoint exists, so My Feed explicitly labels the current published community feed.
 - Email start/verify and Google login use the existing POST endpoints. Tokens remain in sessionStorage, not localStorage. Exit clears the current tab's token; there is no server-side logout endpoint.
 - Recording limits come from `/api/recording/limits`. Recording stays disabled until verified. The recorder stops at the cap, shows the cap and timer, supports local playback/download, and never uploads audio.
-- Uploads, comments, reactions, filtered book feed, account deletion and admin UI are not implemented or represented as working.
+- Uploads, comments, reactions, filtered book feed and account deletion are not implemented or represented as working.
 
 ## Attribution
 

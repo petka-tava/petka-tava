@@ -1,0 +1,5 @@
+:root{--bg:#fbf6ec;--fg:#2b2118;--accent:#8a5a2b}
+@media(prefers-color-scheme:dark){:root{--bg:#1c1712;--fg:#efe6d6}}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:"David Libre",Georgia,serif}
+header{display:flex;justify-content:space-between;align-items:center;padding:.6rem 1rem;border-bottom:1px solid var(--accent)}
+h1{font-size:1.3rem;margin:0}.hdate{order:3}

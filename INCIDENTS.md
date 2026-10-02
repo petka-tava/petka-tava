@@ -41,3 +41,8 @@ Permanent rule (owner, 2/10): whenever anything goes wrong in a build (security 
 - Issue: one-click approve links in email can be triggered by link scanners/prefetch.
 - Fix: the link opens a confirm page (GET) and only a POST changes anything; links are HMAC-signed and any bad signature returns 404.
 - Guideline: state changes never happen on GET.
+
+## Google sign-in disabled in production
+- Issue: users saw "האפשרות מושבתת כרגע" on Google sign-in. Flag login_google was OFF in D1 (seeded off; the client ID was added later without enabling the flag).
+- Fix: flag turned on via the admin API; verified end to end in a real browser (Google button -> /api/auth/google -> session).
+- Prevention: enabling a login method now means checking its flag in the same step; the E2E checklist includes every login method.

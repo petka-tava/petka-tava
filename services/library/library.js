@@ -77,6 +77,7 @@ export async function resolveLocation(db, body) {
     if (ok.length === 1 && p.results.length === 1) { ({ id: ref_id, daf, amud } = ok[0]); location = display(ref_id, daf, amud); }
   }
   if (daf !== null) { source = body.source == null ? 'gemara' : String(body.source); if (!SOURCES[source]) return { error: 'bad_source' }; }
+  if (!location && ref_id) { const b = await db.prepare('SELECT title_he FROM catalog_refs WHERE id=?').bind(ref_id).first(); location = b?.title_he || ''; }
   if (!location) return { error: 'location_required' };
   return { ref_id, daf, amud, source, location };
 }

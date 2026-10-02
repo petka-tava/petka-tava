@@ -8,7 +8,7 @@ const own = async (db, user, id) => db.prepare('SELECT * FROM chiddushim WHERE i
 
 export async function create(env, user, body) {
   await requireFlag(env.DB, 'recording');
-  if (!String(body.location || '').trim() && body.daf == null) return json({ error: 'location_required' }, 400); // location is mandatory (spec)
+  if (!String(body.location || '').trim() && body.daf == null && !body.ref_id) return json({ error: 'location_required' }, 400); // location is mandatory (spec)
   const L = await resolveLocation(env.DB, body);
   if (L.error) return json({ error: L.error }, 400);
   let ref = null;

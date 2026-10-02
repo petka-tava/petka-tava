@@ -1,7 +1,7 @@
 import { getFlag, setFlag } from '../../services/admin/flags.js';
 import { recordingLimits, purgeExpired } from '../../services/recording/recording.js';
 import { emailStart, emailVerify, googleLogin, currentUser } from '../../services/users/auth.js';
-import { sections, books } from '../../services/catalog/catalog.js';
+import { sections, books, search as catSearch } from '../../services/catalog/catalog.js';
 import { register, contact, adminListUsers, adminDeleteUser } from '../../services/users/extra.js';
 import { stats as pStats, listContacts as pContacts, replyContact as pReply, setSetting as pSet } from '../../services/admin/panel.js';
 import { handle as consoleHandle, isAdmin as isAdminAsync, notifyPending, ADMIN_MAIL, consolePath, mintSession } from '../../services/admin/console.js';
@@ -97,6 +97,7 @@ export default {
         if (lp === 'daf') return wrap(await Lib.daf(env.DB, await currentUser(env, req), q.get('book') || '', q.get('daf'), q.get('amud') || ''));
       }
       if (url.pathname === '/api/catalog/sections') return wrap(await sections(env.DB));
+      if (url.pathname === '/api/catalog/search') return wrap(await catSearch(env.DB, url.searchParams.get('q'), url.searchParams.get('section'), url.searchParams.get('limit'), url.searchParams.get('cursor')));
       if (url.pathname === '/api/catalog/books') return wrap(await books(env.DB, url.searchParams.get('section'), url.searchParams.get('q')));
       if (url.pathname === '/api/feed') return wrap(await feed(env.DB, await currentUser(env, req), url.searchParams.get('limit')));
       if (url.pathname === '/api/admin/flags') {

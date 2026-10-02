@@ -1,5 +1,6 @@
 import { requireFlag, getFlag } from '../admin/flags.js';
 import { sendMail } from '../notifications/gmail.js';
+import { takePending, savePhone } from './extra.js';
 const json = (o, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { 'content-type': 'application/json' } });
 const hex = buf => [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
 const sha = async s => hex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)));
@@ -46,10 +47,13 @@ export async function emailVerify(env, body) {
   let u = await env.DB.prepare('SELECT id,banned FROM users WHERE email=?').bind(email).first();
   if (u?.banned) return json({ error: 'banned' }, 403);
   if (!u) {
-    if (!validNick(body.nickname)) return json({ error: 'nickname_required' }, 400);
+    const pend = await takePending(env, email);
+    const nick = pend?.nickname ?? body.nickname;
+    if (!validNick(nick)) return json({ error: 'nickname_required' }, 400);
     const id = crypto.randomUUID();
-    try { await env.DB.prepare("INSERT INTO users(id,email,nickname,auth_kind,created_at) VALUES(?,?,?,'email',?)").bind(id, email, body.nickname.trim(), Date.now()).run(); }
+    try { await env.DB.prepare("INSERT INTO users(id,email,nickname,auth_kind,created_at) VALUES(?,?,?,?,?)").bind(id, email, nick.trim(), pend ? 'manual' : 'email', Date.now()).run(); }
     catch { return json({ error: 'nickname_taken' }, 409); }
+    await savePhone(env, id, pend?.phone_hash);
     u = { id };
   }
   return json({ ok: true, token: await newSession(env, u.id) });

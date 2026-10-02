@@ -12,8 +12,8 @@ Static, no-build Hebrew RTL pages for GitHub Pages. No runtime package dependenc
 - Section books and search use `/api/catalog/books?section=&q=`. The API returns at most 200 rows; the UI explains that cap. No fabricated total counts or pagination.
 - Book links carry a section and catalog ID. The detail page verifies the ID against catalog search. It displays metadata, not Sefaria text.
 - Guest feed reads `/api/feed`; signed-in feed sends the Bearer token. No personalized feed endpoint exists, so My Feed explicitly labels the current published community feed.
-- Email start/verify and Google login use the existing POST endpoints. Tokens remain in sessionStorage, not localStorage. Exit clears the current tab's token; there is no server-side logout endpoint.
-- Recording limits come from `/api/recording/limits`. Recording stays disabled until verified. The recorder stops at the cap, shows the cap and timer, supports local playback/download, and never uploads audio.
+- Email start/verify and Google login use the existing POST endpoints. Tokens remain in sessionStorage, not localStorage. Exit calls `/api/auth/logout` to revoke the session before clearing the current tab's token.
+- Recording starts locally and uploads only after the explicit upload action. Limits and retention come from `/api/recording/limits` and must verify before recording/upload.
 - Uploads, comments, reactions, filtered book feed and account deletion are not implemented or represented as working.
 
 ## Attribution
@@ -34,6 +34,15 @@ Mocked interaction tests passed for search/no results, missing book, HTML-safe f
 
 The shared footer opens an accessible native dialog on the same page, including credits/privacy. POST `/api/contact` sends optional name (80 chars), email (120), message (5..2000) and an empty `website` honeypot. The modal states what is sent and its use for responding. Errors keep the message; only `{ok:true}` shows a sent confirmation. Native modal handles focus containment, Escape and focus return; explicit close and backdrop dismissal are provided.
 
-`register.html` is a distinct manual signup path linked from signup. POST `/api/auth/register` sends email, display_name (2..40), optional phone and explicit required consent. Phone use/hash/non-display is explained per the backend contract. A pending result shows the email-code form; verification sends only email/code and saves the returned token. No password collected. Existing email directs the visitor to login. No CAPTCHA added.
+`register.html` is a distinct manual signup path linked from signup. POST `/api/auth/register` sends email, display_name (2..24), optional phone and explicit required consent. Phone use/hash/non-display is explained per the backend contract. A pending result shows the email-code form; verification sends only email/code and saves the returned token. No password collected. Existing email directs the visitor to login. No CAPTCHA added.
 
 Additional mocked Chrome checks passed for contact payload/limits, mailbox-unavailable preservation/retry, successful reset, same-page behavior and modal keyboard/focus, manual optional-phone and consent fields, existing-account error, pending signup and verification. Desktop/mobile contact and manual form pixels inspected. No real contact email or account creation attempted. Backend endpoints must be deployed and tested end-to-end by the backend owner.
+
+## Content integration (third pass)
+
+- Recorder creates a draft, uploads raw supported audio with x-audio-seconds, and polls the owner detail endpoint every 3 seconds for up to one minute. Checks stop on navigation or when editing starts. A failed upload preserves the local recording and reuses the created draft on retry. Limits are read dynamically (seconds, bytes, daily cap and nullable retention), not hardcoded. No audio playback endpoint exists, so resumed drafts do not invent a server playback link.
+- Transcript editor prominently warns about AI errors/hallucinated words on silence/noise. Text is saved separately; submission requires review checkbox and a final confirmation naming public nickname/location/text. Draft, pending, published and rejected states are shown. A pending/published response hides the submit action. Editing existing non-draft transcripts uses the current owner-edit API contract.
+- My Feed lists up to 100 own items with status, resume/edit and deletion, plus published community feed. Reactions toggle with returned count/mine state. Comments are HTML-safe and show pending/publication confirmation. Guest interaction asks for login.
+- Self-deletion requires a first confirmation and typing the exact confirmation phrase. Server logout must succeed before the tab token is cleared. No admin controls/links are exposed.
+- Mocked content tests passed for failed upload/retry without duplicate draft, raw audio headers/Bearer, polling/edit/save/review/submit, own-status listing, reaction toggle, escaped comments and moderation status, two-stage delete cancellation/success and server logout. Screenshots inspected at desktop/mobile. The live limits endpoint was checked; no real content, comments, reactions, deletions, logout or audio uploads were performed during tests.
+- Privacy copy covers DB audio storage, AI transcription, configurable retention, public nickname/location, comments, deletion and logout.

@@ -26,11 +26,24 @@
     target.innerHTML = `<div class="notice error" role="alert">${esc(error.message)}</div>`;
     if (retry) { const button = document.createElement('button'); button.className = 'secondary'; button.textContent = 'נסו שוב'; button.onclick = retry; target.append(button); }
   }
+  // Intl supplies the Hebrew calendar; encode its numeric parts with Hebrew numerals.
+  // Years omit the customary thousands prefix (5787 -> תשפ״ז).
+  function hebrewNumeral(value) {
+    let n=Number(value);if(!Number.isInteger(n)||n<1||n>999)throw new RangeError('Invalid Hebrew numeral');
+    let text='';const letters=[[400,'ת'],[300,'ש'],[200,'ר'],[100,'ק'],[90,'צ'],[80,'פ'],[70,'ע'],[60,'ס'],[50,'נ'],[40,'מ'],[30,'ל'],[20,'כ'],[10,'י'],[9,'ט'],[8,'ח'],[7,'ז'],[6,'ו'],[5,'ה'],[4,'ד'],[3,'ג'],[2,'ב'],[1,'א']];
+    for(const [number,letter] of letters){while(n>=number){if(n===15){text+='טו';n=0;break;}if(n===16){text+='טז';n=0;break;}text+=letter;n-=number;}}
+    return text.length===1?text+'׳':text.slice(0,-1)+'״'+text.slice(-1);
+  }
+  function hebrewDate(value=new Date()) {
+    const parts=new Intl.DateTimeFormat('he-IL-u-ca-hebrew-nu-latn',{day:'numeric',month:'long',year:'numeric',timeZone:'Asia/Jerusalem'}).formatToParts(value);
+    const part=type=>parts.find(item=>item.type===type)?.value;
+    return hebrewNumeral(Number(part('day')))+' ב'+part('month')+' '+hebrewNumeral(Number(part('year'))%1000||1000);
+  }
   function shell() {
     const links = [['home','index.html','בית'],['catalog','catalog.html','ספרייה'],['feed','feed.html','חידושים'],['my-feed','my-feed.html','הפיד שלי']];
     $('site-header').innerHTML = `<div class="header-inner"><a class="brand" href="index.html"><img src="logo.svg" alt="" width="52" height="52"><span class="brand-name">פתקא טבא<small>מקום לחידושי תורה</small></span></a><nav class="site-nav" aria-label="ניווט ראשי">${links.map(([key,url,label]) => `<a href="${url}" ${page === key ? 'aria-current="page"' : ''}>${label}</a>`).join('')}<a id="account-link" href="login.html">כניסה</a></nav></div>`;
     $('site-footer').innerHTML = '<div class="footer-inner"><span>פתקא טבא · by OrelAI</span><div class="footer-links"><button type="button" class="text-button" id="contact-open">יצירת קשר</button><a href="credits.html">קרדיטים</a><a href="privacy.html">פרטיות</a><a href="index.html">חזרה לבית</a></div></div>';
-    try { $('hdate').textContent = new Intl.DateTimeFormat('he-IL-u-ca-hebrew', {day:'numeric',month:'long',year:'numeric',timeZone:'Asia/Jerusalem'}).format(new Date()); } catch {}
+    try { $('hdate').textContent=hebrewDate();$('hdate').dir='rtl'; } catch {}
   }
   async function loadUser() {
     if (!token) return null;
@@ -136,6 +149,6 @@
   }
   shell();
   if($('contact-open'))contactModal();
-  window.Petka={api,formatSeconds,esc,getUser:()=>user,clearSession:()=>{try{sessionStorage.removeItem('petka-session');}catch{}token='';user=null;}};
+  window.Petka={api,formatSeconds,hebrewDate,hebrewNumeral,esc,getUser:()=>user,clearSession:()=>{try{sessionStorage.removeItem('petka-session');}catch{}token='';user=null;}};
   (async()=>{try{await loadUser();}catch(e){if(['my-feed','login','signup','register','record'].includes(page)){failure($('page-status'),e,()=>location.reload());return;}}window.Petka.readyUser=true;if(page==='record')window.dispatchEvent(new CustomEvent('petka-ready'));if(page==='my-feed'&&user)await myContent();if(page==='register')manualRegistration();if(page==='home')await home();if(page==='catalog')await catalog();if(page==='book')await book();if(page==='feed'||page==='my-feed')await feed(page==='my-feed');if(page==='login'||page==='signup')await auth();})().catch(e=>failure($('page-status'),e));
 })();

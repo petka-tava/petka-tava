@@ -1,18 +1,20 @@
 // User content: chiddushim (recording + transcript), comments, reactions, moderation. Every feature is gated by server flags.
 import { requireFlag, getFlag } from '../admin/flags.js';
 import { uploadAudio } from '../recording/recording.js';
+import { resolveLocation } from '../library/library.js';
 import { transcribeChidush } from '../transcription/transcribe.js';
 const json = (o, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { 'content-type': 'application/json' } });
 const own = async (db, user, id) => db.prepare('SELECT * FROM chiddushim WHERE id=? AND author_id=?').bind(id, user.id).first();
 
 export async function create(env, user, body) {
   await requireFlag(env.DB, 'recording');
-  const location = String(body.location || '').trim().slice(0, 120);
-  if (!location) return json({ error: 'location_required' }, 400); // location is mandatory (spec)
+  if (!String(body.location || '').trim() && body.daf == null) return json({ error: 'location_required' }, 400); // location is mandatory (spec)
+  const L = await resolveLocation(env.DB, body);
+  if (L.error) return json({ error: L.error }, 400);
   let ref = null;
-  if (body.ref_id) { ref = await env.DB.prepare('SELECT r.id FROM catalog_refs r JOIN catalog_sections s ON s.id=r.section_id WHERE r.id=? AND s.active=1').bind(body.ref_id).first(); if (!ref) return json({ error: 'bad_ref' }, 400); }
+  if (L.ref_id) { ref = await env.DB.prepare('SELECT r.id FROM catalog_refs r JOIN catalog_sections s ON s.id=r.section_id WHERE r.id=? AND s.active=1').bind(L.ref_id).first(); if (!ref) return json({ error: 'bad_ref' }, 400); }
   const id = crypto.randomUUID();
-  await env.DB.prepare("INSERT INTO chiddushim(id,author_id,ref_id,location,location_auto,status,created_at) VALUES(?,?,?,?,?,'draft',?)").bind(id, user.id, ref?.id ?? null, location, body.location_auto ? 1 : 0, Date.now()).run();
+  await env.DB.prepare("INSERT INTO chiddushim(id,author_id,ref_id,location,location_auto,daf,amud,source,status,created_at) VALUES(?,?,?,?,?,?,?,?,'draft',?)").bind(id, user.id, ref?.id ?? null, L.location, body.location_auto ? 1 : 0, L.daf, L.amud, L.source, Date.now()).run();
   return json({ ok: true, id });
 }
 export async function upload(env, ctx, user, id, req) {
@@ -29,10 +31,10 @@ export async function get(env, user, id) {
   const c = await own(env.DB, user, id);
   if (!c) return json({ error: 'not_found' }, 404);
   const a = await env.DB.prepare('SELECT seconds,expires_at FROM audio_blobs WHERE chidush_id=?').bind(id).first();
-  return json({ id: c.id, status: c.status, ref_id: c.ref_id, location: c.location, transcript: c.transcript, transcript_ready: c.transcript != null, has_audio: !!a, audio_seconds: a?.seconds ?? null, audio_expires_at: a && a.expires_at < 9e15 ? a.expires_at : null, created_at: c.created_at });
+  return json({ id: c.id, status: c.status, ref_id: c.ref_id, daf: c.daf, amud: c.amud, source: c.source, location: c.location, transcript: c.transcript, transcript_ready: c.transcript != null, has_audio: !!a, audio_seconds: a?.seconds ?? null, audio_expires_at: a && a.expires_at < 9e15 ? a.expires_at : null, created_at: c.created_at });
 }
 export async function mine(env, user) {
-  const { results } = await env.DB.prepare('SELECT id,status,ref_id,location,substr(transcript,1,120) AS preview,created_at,published_at FROM chiddushim WHERE author_id=? ORDER BY created_at DESC LIMIT 100').bind(user.id).all();
+  const { results } = await env.DB.prepare('SELECT id,status,ref_id,daf,amud,source,location,substr(transcript,1,120) AS preview,created_at,published_at FROM chiddushim WHERE author_id=? ORDER BY created_at DESC LIMIT 100').bind(user.id).all();
   return json({ items: results });
 }
 export async function setTranscript(env, user, id, body) {

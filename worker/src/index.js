@@ -7,6 +7,7 @@ import { stats as pStats, listContacts as pContacts, replyContact as pReply, set
 import { handle as consoleHandle, isAdmin as isAdminAsync, notifyPending, ADMIN_MAIL, consolePath, mintSession } from '../../services/admin/console.js';
 import * as C from '../../services/content/content.js';
 import { shabbatStatus } from '../../services/shabbat/shabbat.js';
+import * as Lib from '../../services/library/library.js';
 import { feed } from '../../services/feed/feed.js';
 const wrap = r => new Response(r.body, { status: r.status, headers: { 'content-type': 'application/json', ...cors } });
 
@@ -86,6 +87,15 @@ export default {
         return json({ links: [{ label: 'ניהול', href: url.origin + '/a/' + (await consolePath(env)) + '#' + (await mintSession(env)) }] });
       }
       if (url.pathname === '/api/me') { const u = await currentUser(env, req); return json(u ? { id: u.id, nickname: u.nickname, role: u.role } : { error: 'unauthorized' }, u ? 200 : 401); }
+      if (url.pathname === '/api/location/parse' && req.method === 'GET') return wrap(await Lib.parse(url));
+      if (url.pathname.startsWith('/api/library/') && req.method === 'GET') {
+        const lp = url.pathname.slice(13), q = url.searchParams;
+        if (lp === 'search') return wrap(await Lib.search(env.DB, q.get('q')));
+        if (lp === 'sections') return wrap(await Lib.sections(env.DB));
+        if (lp === 'books') return wrap(await Lib.books(env.DB, q.get('section') || ''));
+        if (lp === 'book') return wrap(await Lib.book(env.DB, await currentUser(env, req), q.get('id') || ''));
+        if (lp === 'daf') return wrap(await Lib.daf(env.DB, await currentUser(env, req), q.get('book') || '', q.get('daf'), q.get('amud') || ''));
+      }
       if (url.pathname === '/api/catalog/sections') return wrap(await sections(env.DB));
       if (url.pathname === '/api/catalog/books') return wrap(await books(env.DB, url.searchParams.get('section'), url.searchParams.get('q')));
       if (url.pathname === '/api/feed') return wrap(await feed(env.DB, await currentUser(env, req), url.searchParams.get('limit')));

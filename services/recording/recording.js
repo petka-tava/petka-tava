@@ -5,7 +5,7 @@ const json = (o, s = 200) => new Response(JSON.stringify(o), { status: s, header
 export async function recordingLimits(db) {
   const f = await getFlag(db, 'recording');
   const r = await getFlag(db, 'audio_retention');
-  return json({ enabled: f.enabled, max_seconds: f.config.max_seconds ?? 180, retention_days: r.config.days ?? 30 });
+  return json({ enabled: f.enabled, max_seconds: f.config.max_seconds ?? 180, max_bytes: f.config.max_bytes ?? 1500000, daily_cap_per_user: f.config.daily_cap_per_user ?? 10, retention_days: r.enabled ? (r.config.days ?? 30) : null });
 }
 
 // Upload: server enforces length/size caps and the per-user daily cap. Client display is informational only.

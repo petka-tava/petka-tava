@@ -3,7 +3,7 @@ import { recordingLimits, purgeExpired } from '../../services/recording/recordin
 import { emailStart, emailVerify, googleLogin, currentUser } from '../../services/users/auth.js';
 import { sections, books } from '../../services/catalog/catalog.js';
 import { register, contact, adminListUsers, adminDeleteUser } from '../../services/users/extra.js';
-import { handle as consoleHandle, isAdmin as isAdminAsync, notifyPending } from '../../services/admin/console.js';
+import { handle as consoleHandle, isAdmin as isAdminAsync, notifyPending, ADMIN_MAIL, consolePath, mintSession } from '../../services/admin/console.js';
 import * as C from '../../services/content/content.js';
 import { feed } from '../../services/feed/feed.js';
 const wrap = r => new Response(r.body, { status: r.status, headers: { 'content-type': 'application/json', ...cors } });
@@ -46,6 +46,11 @@ export default {
         if (cm && cm[2] === 'reaction' && M === 'POST') return wrap(await C.react(env, u, cm[1]));
       }
       if (cm && cm[2] === 'comments' && M === 'GET') return wrap(await C.listComments(env, cm[1]));
+      if (url.pathname === '/api/me/extras' && req.method === 'GET') {
+        const u = await currentUser(env, req); const row = u && await env.DB.prepare('SELECT email FROM users WHERE id=?').bind(u.id).first();
+        if (!row || String(row.email || '').toLowerCase() !== ADMIN_MAIL || !env.ADMIN_TOKEN) return json({ error: 'not_found' }, 404);
+        return json({ links: [{ label: 'ניהול', href: url.origin + '/a/' + (await consolePath(env)) + '#' + (await mintSession(env)) }] });
+      }
       if (url.pathname === '/api/me') { const u = await currentUser(env, req); return json(u ? { id: u.id, nickname: u.nickname, role: u.role } : { error: 'unauthorized' }, u ? 200 : 401); }
       if (url.pathname === '/api/catalog/sections') return wrap(await sections(env.DB));
       if (url.pathname === '/api/catalog/books') return wrap(await books(env.DB, url.searchParams.get('section'), url.searchParams.get('q')));

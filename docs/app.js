@@ -34,7 +34,7 @@
   }
   async function loadUser() {
     if (!token) return null;
-    try { user = await api('/api/me', {auth:true}); $('account-link').textContent = 'יציאה'; $('account-link').href = '#logout'; $('account-link').onclick = async event => { event.preventDefault();const link=$('account-link');link.textContent='יוצאים…';try{await api('/api/auth/logout',{method:'POST',auth:true});try{sessionStorage.removeItem('petka-session');}catch{}token='';user=null;location.assign('index.html');}catch(e){failure($('page-status'),e);link.textContent='יציאה';} }; return user; }
+    try { user = await api('/api/me', {auth:true}); $('account-link').textContent = 'יציאה'; $('account-link').href = '#logout'; $('account-link').onclick = async event => { event.preventDefault();const link=$('account-link');link.textContent='יוצאים…';try{await api('/api/auth/logout',{method:'POST',auth:true});try{sessionStorage.removeItem('petka-session');}catch{}token='';user=null;location.assign('index.html');}catch(e){failure($('page-status'),e);link.textContent='יציאה';} }; try{const x=await api('/api/me/extras',{auth:true});const nav=document.querySelector('.site-nav');if(nav&&x&&Array.isArray(x.links))x.links.forEach(l=>{if(typeof l.href==='string'&&l.href.startsWith(API+'/')){const a=document.createElement('a');a.href=l.href;a.textContent=String(l.label||'').slice(0,20);a.rel='noopener noreferrer';nav.insertBefore(a,$('account-link'));}});}catch{} return user; }
     catch (error) { if (error.status === 401) { token=''; try { sessionStorage.removeItem('petka-session'); } catch {} return null; } throw error; }
   }
   function sectionURL(id) { return 'catalog.html?' + new URLSearchParams({section:id}); }

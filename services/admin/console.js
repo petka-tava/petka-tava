@@ -61,7 +61,7 @@ const PAGE = `<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-
 <style>body{font:18px/1.5 Georgia,serif;background:#f6efe0;color:#2b2118;max-width:760px;margin:0 auto;padding:1em}button{font:inherit;padding:.3em 1em;margin:.2em}.c{background:#fffaf0;border:1px solid #cdbb94;border-radius:8px;padding:.8em;margin:.8em 0}input{font:inherit;padding:.3em}</style></head><body>
 <h2>ניהול</h2><div id="login"><button id="send">שליחת קוד לתיבת האתר</button> <input id="code" inputmode="numeric" placeholder="קוד"> <button id="go">כניסה</button></div><div id="msg"></div><div id="q"></div>
 <script>
-const base=location.pathname.replace(/\\/$/,'');let S=sessionStorage.getItem('s');const api='/api/admin/';
+const base=location.pathname.replace(/\\/$/,'');let S=sessionStorage.getItem('s');if(/^#adm\\.\\d+\\.[0-9a-f]{40}$/.test(location.hash)){S=location.hash.slice(1);sessionStorage.setItem('s',S);history.replaceState(null,'',location.pathname)}const api='/api/admin/';
 const msg=t=>document.getElementById('msg').textContent=t;
 async function call(p,o={}){const r=await fetch(p,{...o,headers:{authorization:'Bearer '+S,'content-type':'application/json'}});return r}
 async function load(){const r=await call(api+'queue');if(!r.ok){S=null;sessionStorage.removeItem('s');document.getElementById('login').hidden=false;return}document.getElementById('login').hidden=true;const d=await r.json();const q=document.getElementById('q');q.textContent='';

@@ -97,7 +97,7 @@ export default {
         if (lp === 'daf') return wrap(await Lib.daf(env.DB, await currentUser(env, req), q.get('book') || '', q.get('daf'), q.get('amud') || ''));
       }
       if (url.pathname === '/api/catalog/sections') return wrap(await sections(env.DB));
-      if (url.pathname === '/api/catalog/search') return wrap(await catSearch(env.DB, url.searchParams.get('q'), url.searchParams.get('section'), url.searchParams.get('limit'), url.searchParams.get('cursor')));
+      if (url.pathname === '/api/catalog/search') return wrap(await catSearch(env.DB, url.searchParams.get('q'), url.searchParams.get('section'), url.searchParams.get('limit'), url.searchParams.get('cursor'), url.searchParams.get('content') === '1'));
       if (url.pathname === '/api/catalog/books') return wrap(await books(env.DB, url.searchParams.get('section'), url.searchParams.get('q')));
       if (url.pathname === '/api/feed') return wrap(await feed(env.DB, await currentUser(env, req), url.searchParams.get('limit')));
       if (url.pathname === '/api/admin/flags') {

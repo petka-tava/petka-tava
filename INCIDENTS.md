@@ -46,3 +46,8 @@ Permanent rule (owner, 2/10): whenever anything goes wrong in a build (security 
 - Issue: users saw "האפשרות מושבתת כרגע" on Google sign-in. Flag login_google was OFF in D1 (seeded off; the client ID was added later without enabling the flag).
 - Fix: flag turned on via the admin API; verified end to end in a real browser (Google button -> /api/auth/google -> session).
 - Prevention: enabling a login method now means checking its flag in the same step; the E2E checklist includes every login method.
+
+## Admin entry for the product account (design note, not an incident)
+- Risk: a client-side admin flag would leak the console path or be spoofable.
+- Control: GET /api/me/extras checks the session's email server-side; everyone else gets the same 404 as an unknown route. Public pages contain no admin wording; the link is built from the server response and only for the API origin.
+- Prevention: the handoff session is short-lived (12h) and passed in the URL fragment, which is never sent to servers and is cleared on load.

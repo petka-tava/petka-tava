@@ -45,7 +45,7 @@ export default {
       if (url.pathname === '/api/shabbat/status') {
         const at = url.searchParams.get('at'); const ms = at && await isAdmin(req, env) ? Date.parse(at) : Date.now();
         const st = await shabbatStatus(env.DB, ms);
-        if (st.locked && (await isAdmin(req, env) || await isProductAccount(env, req))) return json({ locked: false });
+        if (!(at && await isAdmin(req, env)) && st.locked && (await isAdmin(req, env) || await isProductAccount(env, req))) return json({ locked: false });
         return json({ locked: !!st.locked, until: st.until || null });
       }
       if (url.pathname === '/api/recording/limits') { const r = await recordingLimits(env.DB); return new Response(r.body, { headers: { 'content-type': 'application/json', ...cors } }); }

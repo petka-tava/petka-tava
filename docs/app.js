@@ -9,7 +9,7 @@
   let token = '';
   try { token = sessionStorage.getItem('petka-session') || ''; } catch {}
   let user = null;
-  const errors = { location_required:'יש לציין מיקום או מראה מקום.', bad_ref:'הספר שנבחר אינו זמין. בחרו ספר מחדש.', too_long:'ההקלטה ארוכה מהמגבלה.', too_large:'קובץ האודיו גדול מהמגבלה. הקליטו שוב הקלטה קצרה יותר.', daily_cap:'הגעתם למכסת ההקלטות היומית. נסו שוב מחר.', bad_type:'פורמט האודיו אינו נתמך.', not_draft:'החידוש כבר נשלח ואינו טיוטה.', transcript_required:'יש לשמור תמלול לפני שליחה.', feature_disabled:'האפשרות מושבתת כרגע. נסו שוב מאוחר יותר.', invalid:'יש לבדוק את הפרטים בטופס ולנסות שוב.', exists:'כתובת הדוא״ל כבר רשומה. היכנסו לחשבון הקיים.', bad_email:'כתובת הדוא"ל אינה תקינה.', rate_limited:'נשלחו יותר מדי בקשות. נסו שוב מאוחר יותר.', mail_unavailable:'שליחת הקוד אינה זמינה כרגע. נסו שוב מאוחר יותר.', invalid_code:'הקוד שגוי או שפג תוקפו. בקשו קוד חדש ונסו שוב.', nickname_required:'נדרש כינוי באורך 2 עד 24 תווים.', nickname_taken:'הכינוי כבר תפוס. בחרו כינוי אחר ובקשו קוד חדש.', banned:'הכניסה לחשבון זה אינה זמינה.', invalid_token:'לא ניתן לאמת את הכניסה עם Google. נסו שוב.', unauthorized:'יש להיכנס לחשבון כדי להמשיך.', not_found:'האפשרות אינה זמינה כרגע.', server_error:'אירעה תקלה בשרת. נסו שוב בעוד רגע.' };
+  const errors = { location_required:'יש לציין מיקום או מראה מקום.', bad_ref:'הספר שנבחר אינו זמין. בחרו ספר מחדש.', too_long:'ההקלטה ארוכה מהמגבלה.', too_large:'קובץ האודיו גדול מהמגבלה. הקליטו שוב הקלטה קצרה יותר.', daily_cap:'הגעתם למכסת ההקלטות היומית. נסו שוב מחר.', bad_type:'פורמט האודיו אינו נתמך.', not_draft:'החידוש כבר נשלח ואינו טיוטה.', transcript_required:'יש לשמור תמלול לפני שליחה.', feature_disabled:'האפשרות מושבתת כרגע. נסו שוב מאוחר יותר.', invalid:'יש לבדוק את הפרטים בטופס ולנסות שוב.', exists:'כתובת הדוא״ל כבר רשומה. היכנסו לחשבון הקיים.', bad_email:'כתובת הדוא"ל אינה תקינה.', rate_limited:'נשלחו יותר מדי בקשות. נסו שוב מאוחר יותר.', mail_unavailable:'שליחת הקוד אינה זמינה כרגע. נסו שוב מאוחר יותר.', invalid_code:'הקוד שגוי או שפג תוקפו. בקשו קוד חדש ונסו שוב.', nickname_required:'נדרש כינוי באורך 2 עד 24 תווים.', nickname_taken:'הכינוי כבר תפוס. בחרו כינוי אחר.', banned:'הכניסה לחשבון זה אינה זמינה.', invalid_token:'לא ניתן לאמת את הכניסה עם Google. נסו שוב.', unauthorized:'יש להיכנס לחשבון כדי להמשיך.', not_found:'האפשרות אינה זמינה כרגע.', server_error:'אירעה תקלה בשרת. נסו שוב בעוד רגע.' };
   async function api(path, { method = 'GET', body, auth = false, signal, raw, headers:extraHeaders = {} } = {}) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);
@@ -91,9 +91,10 @@
   }
   async function feed(my=false) {
     const target=$('feed-content');
+    if(!my){$('feed-title').textContent=user?'חידושים בקהילה':'טעימה מהחידושים';$('feed-description').textContent=user?'החידושים שפורסמו בקהילה. אתם מחוברים לחשבון.':'טעימה מהחידושים שפורסמו בקהילה. היכנסו לחשבון כדי לראות יותר.';$('guest-feed-notice').hidden=Boolean(user);document.title=(user?'חידושים בקהילה':'טעימה מהחידושים')+' - פתקא טבא';}
     if (my&&!user) { target.innerHTML='<div class="empty"><h2>הפיד שלכם מתחיל כאן</h2><p>היכנסו לחשבון כדי לראות את החידושים המפורסמים, מעבר לטעימה לאורחים.</p><a class="button" href="login.html?next=my-feed.html">כניסה לחשבון</a> <a class="button secondary" href="signup.html">הרשמה</a></div>'; return; }
     if (my) { $('feed-title').textContent='שלום, '+user.nickname; $('feed-description').textContent='חידושים שפורסמו בקהילה. התאמה אישית של הפיד עדיין אינה זמינה.'; }
-    const load=async()=>{target.innerHTML='<p class="loading" role="status">טוענים חידושים…</p>';try{const result=await api('/api/feed',{auth:my});target.innerHTML=result.items.length?renderFeed(result.items):'<div class="empty"><h2>עוד אין כאן חידושים שפורסמו</h2><p>כשיהיו חידושים מאושרים בקהילה, הם יופיעו כאן.</p><a class="button secondary" href="catalog.html">בינתיים, לספרייה</a></div>';wireFeed(target);}catch(e){failure(target,e,load);}};await load();
+    const load=async()=>{target.innerHTML='<p class="loading" role="status">טוענים חידושים…</p>';try{const result=await api('/api/feed',{auth:Boolean(user)});target.innerHTML=result.items.length?renderFeed(result.items):'<div class="empty"><h2>עוד אין כאן חידושים שפורסמו</h2><p>כשיהיו חידושים מאושרים בקהילה, הם יופיעו כאן.</p><a class="button secondary" href="catalog.html">בינתיים, לספרייה</a></div>';wireFeed(target);}catch(e){failure(target,e,load);}};await load();
   }
   async function myContent() {
     const target=$('my-content');
@@ -120,7 +121,7 @@
   function validNick(){const n=nickname();if(n.length<2||n.length>24||/[<>@\/\\]/.test(n)){authStatus(errors.nickname_required,true);$('nickname').focus();return false;}return true;}
   function signedIn(data) {if(!data.token)throw new Error('לא התקבל אישור כניסה. נסו שוב.');try{sessionStorage.setItem('petka-session',data.token);}catch{throw new Error('יש לאפשר אחסון בדפדפן כדי להיכנס.');} const next=params.get('next');location.assign(['my-feed.html','record.html','catalog.html','feed.html'].includes(next)?next:'my-feed.html');}
   async function auth() {
-    if(user){$('auth-form-area').innerHTML=`<div class="notice">כבר נכנסתם בתור ${esc(user.nickname)}.</div><a class="button" href="my-feed.html">לפיד שלי</a>`;return;}
+    if(user){document.querySelector('.auth-switch').hidden=true;$('auth-form-area').innerHTML=`<div class="notice">כבר נכנסתם בתור ${esc(user.nickname)}.</div><a class="button" href="my-feed.html">לפיד שלי</a>`;return;}
     let email='';
     $('email-form').onsubmit=async event=>{event.preventDefault();if(page==='signup'&&!validNick())return;const button=$('send-code');button.disabled=true;button.textContent='שולחים…';try{email=$('email').value.trim();await api('/api/auth/email/start',{method:'POST',body:{email}});$('email-form').hidden=true;$('code-form').hidden=false;$('code-email').textContent=email;authStatus('הקוד נשלח. הוא תקף ל-10 דקות. בדקו גם בתיקיית הספאם.');$('code').focus();}catch(e){authStatus(e.message,true);}finally{button.disabled=false;button.textContent='שליחת קוד כניסה';}};
     $('code-form').onsubmit=async event=>{event.preventDefault();if(nickname()&&!validNick())return;const button=$('verify-code');button.disabled=true;try{const data=await api('/api/auth/email/verify',{method:'POST',body:{email,code:$('code').value.trim(),nickname:nickname()}});signedIn(data);}catch(e){authStatus(e.message,true);if(['nickname_required','nickname_taken'].includes(e.code)){$('nickname').focus();authStatus(e.message+' לאחר בחירת כינוי יש לבקש קוד חדש.',true);}}finally{button.disabled=false;}};
@@ -131,6 +132,7 @@
     script.onerror=()=>{$('google-unavailable').hidden=false;};document.head.append(script);
   }
   function manualRegistration() {
+    if(user){document.querySelector('.auth-switch').hidden=true;$('manual-form').innerHTML=`<div class="notice">כבר נכנסתם בתור ${esc(user.nickname)}.</div><a class="button" href="my-feed.html">לפיד שלי</a>`;return;}
     let email='';
     const report=(text,error=false)=>{const status=$('manual-status');status.hidden=false;status.textContent=text;status.className='notice'+(error?' error':'');};
     $('manual-form').onsubmit=async event=>{
@@ -150,5 +152,5 @@
   shell();
   if($('contact-open'))contactModal();
   window.Petka={api,formatSeconds,hebrewDate,hebrewNumeral,esc,getUser:()=>user,clearSession:()=>{try{sessionStorage.removeItem('petka-session');}catch{}token='';user=null;}};
-  (async()=>{try{await loadUser();}catch(e){if(['my-feed','login','signup','register','record'].includes(page)){failure($('page-status'),e,()=>location.reload());return;}}window.Petka.readyUser=true;if(page==='record')window.dispatchEvent(new CustomEvent('petka-ready'));if(page==='my-feed'&&user)await myContent();if(page==='register')manualRegistration();if(page==='home')await home();if(page==='catalog')await catalog();if(page==='book')await book();if(page==='feed'||page==='my-feed')await feed(page==='my-feed');if(page==='login'||page==='signup')await auth();})().catch(e=>failure($('page-status'),e));
+  (async()=>{try{await loadUser();}catch(e){failure($('page-status'),e,()=>location.reload());return;}window.Petka.readyUser=true;if(page==='record')window.dispatchEvent(new CustomEvent('petka-ready'));if(page==='my-feed'&&user)await myContent();if(page==='register')manualRegistration();if(page==='home')await home();if(page==='catalog')await catalog();if(page==='book')await book();if(page==='feed'||page==='my-feed')await feed(page==='my-feed');if(page==='login'||page==='signup')await auth();})().catch(e=>failure($('page-status'),e));
 })();

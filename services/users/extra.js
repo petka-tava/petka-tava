@@ -1,4 +1,5 @@
 // Manual registration, contact form and admin user tools. Schema is created lazily (idempotent) so no extra D1 token is needed.
+import { saveContact } from '../admin/panel.js';
 import { requireFlag } from '../admin/flags.js';
 import { sendMail } from '../notifications/gmail.js';
 import { emailStart } from './auth.js';
@@ -69,6 +70,7 @@ export async function contact(env, req, body) {
   if (n.c >= (cfg.per_hour ?? 3)) return json({ error: 'rate_limited' }, 429);
   await env.DB.prepare("INSERT INTO rate_hits(kind,key_hash,ts) VALUES('contact',?,?)").bind(ip, Date.now()).run();
   await env.DB.prepare("DELETE FROM rate_hits WHERE ts<?").bind(Date.now() - 86400000).run();
+  await saveContact(env.DB, name, email, msg);
   const r = await sendMail(env, { to: 'petkatava@gmail.com', subject: 'פנייה מהאתר: ' + (name || email), html: `<div dir="rtl"><b>שם:</b> ${esc(name)}<br><b>דוא״ל:</b> ${esc(email)}<br><br>${esc(msg).replace(/\n/g, '<br>')}</div>` });
   if (r.error) return json({ error: 'mail_unavailable' }, 503);
   return json({ ok: true });

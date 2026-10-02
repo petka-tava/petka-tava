@@ -3,6 +3,7 @@ import { recordingLimits, purgeExpired } from '../../services/recording/recordin
 import { emailStart, emailVerify, googleLogin, currentUser } from '../../services/users/auth.js';
 import { sections, books } from '../../services/catalog/catalog.js';
 import { register, contact, adminListUsers, adminDeleteUser } from '../../services/users/extra.js';
+import { stats as pStats, listContacts as pContacts, replyContact as pReply, setSetting as pSet } from '../../services/admin/panel.js';
 import { handle as consoleHandle, isAdmin as isAdminAsync, notifyPending, ADMIN_MAIL, consolePath, mintSession } from '../../services/admin/console.js';
 import * as C from '../../services/content/content.js';
 import { feed } from '../../services/feed/feed.js';
@@ -28,6 +29,13 @@ export default {
       const P = url.pathname, M = req.method;
       if (P === '/api/admin/queue' && M === 'GET') { if (!(await isAdmin(req, env))) return json({ error: 'not_found' }, 404); return wrap(await C.adminQueue(env)); }
       if (P === '/api/admin/moderate' && M === 'POST') { if (!(await isAdmin(req, env))) return json({ error: 'not_found' }, 404); return wrap(await C.adminModerate(env, await req.json())); }
+      if (P.startsWith('/api/admin/') && ['/api/admin/stats', '/api/admin/contacts', '/api/admin/contacts/reply', '/api/admin/setting'].includes(P)) {
+        if (!(await isAdmin(req, env))) return json({ error: 'not_found' }, 404);
+        if (P === '/api/admin/stats' && M === 'GET') return wrap(await pStats(env));
+        if (P === '/api/admin/contacts' && M === 'GET') return wrap(await pContacts(env));
+        if (P === '/api/admin/contacts/reply' && M === 'POST') return wrap(await pReply(env, await req.json()));
+        if (P === '/api/admin/setting' && M === 'POST') return wrap(await pSet(env, await req.json()));
+      }
       if (P === '/api/auth/logout' && M === 'POST') return wrap(await C.logout(env, req));
       const cm = P.match(/^\/api\/chiddushim\/([\w-]+)\/(audio|transcript|submit|comments|reaction)$/);
       const cid = P.match(/^\/api\/chiddushim\/([\w-]+)$/);

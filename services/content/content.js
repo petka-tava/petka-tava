@@ -43,7 +43,7 @@ export async function setTranscript(env, user, id, body) {
   await env.DB.prepare('UPDATE chiddushim SET transcript=? WHERE id=?').bind(t, id).run();
   return json({ ok: true });
 }
-export async function submit(env, user, id) {
+export async function submit(env, user, id, ctx, origin, notify) {
   const c = await own(env.DB, user, id);
   if (!c) return json({ error: 'not_found' }, 404);
   if (c.status !== 'draft') return json({ error: 'not_draft' }, 409);
@@ -51,6 +51,7 @@ export async function submit(env, user, id) {
   const auto = await getFlag(env.DB, 'auto_approve');
   const st = auto.enabled ? 'published' : 'pending';
   await env.DB.prepare('UPDATE chiddushim SET status=?, published_at=? WHERE id=?').bind(st, st === 'published' ? Date.now() : null, id).run();
+  if (st === 'pending' && notify) { const p = notify(env, origin, 'chidush', id, user.nickname, c.transcript); ctx?.waitUntil ? ctx.waitUntil(p) : await p; }
   return json({ ok: true, status: st });
 }
 export async function remove(env, user, id) {
@@ -65,7 +66,7 @@ export async function listComments(env, id) {
   const { results } = await env.DB.prepare("SELECT c.id,u.nickname,c.body,c.created_at FROM comments c JOIN users u ON u.id=c.author_id JOIN chiddushim d ON d.id=c.chidush_id WHERE c.chidush_id=? AND c.status='published' AND d.status='published' ORDER BY c.created_at LIMIT 200").bind(id).all();
   return json({ items: results });
 }
-export async function addComment(env, user, id, body) {
+export async function addComment(env, user, id, body, ctx, origin, notify) {
   const cfg = await requireFlag(env.DB, 'comments');
   const d = await env.DB.prepare("SELECT 1 FROM chiddushim WHERE id=? AND status='published'").bind(id).first();
   if (!d) return json({ error: 'not_found' }, 404);
@@ -74,7 +75,9 @@ export async function addComment(env, user, id, body) {
   const n = await env.DB.prepare('SELECT count(*) c FROM comments WHERE author_id=? AND created_at>?').bind(user.id, Date.now() - 3600000).first();
   if (n.c >= (cfg.per_hour ?? 10)) return json({ error: 'rate_limited' }, 429);
   const st = cfg.moderated === false ? 'published' : 'pending';
-  await env.DB.prepare('INSERT INTO comments(id,chidush_id,author_id,body,status,created_at) VALUES(?,?,?,?,?,?)').bind(crypto.randomUUID(), id, user.id, text, st, Date.now()).run();
+  const cid = crypto.randomUUID();
+  await env.DB.prepare('INSERT INTO comments(id,chidush_id,author_id,body,status,created_at) VALUES(?,?,?,?,?,?)').bind(cid, id, user.id, text, st, Date.now()).run();
+  if (st === 'pending' && notify) { const p = notify(env, origin, 'comment', cid, user.nickname, text); ctx?.waitUntil ? ctx.waitUntil(p) : await p; }
   return json({ ok: true, status: st });
 }
 export async function react(env, user, id) {

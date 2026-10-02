@@ -3,6 +3,7 @@ import { recordingLimits, purgeExpired } from '../../services/recording/recordin
 import { emailStart, emailVerify, googleLogin, currentUser } from '../../services/users/auth.js';
 import { sections, books } from '../../services/catalog/catalog.js';
 import { register, contact, adminListUsers, adminDeleteUser } from '../../services/users/extra.js';
+import * as C from '../../services/content/content.js';
 import { feed } from '../../services/feed/feed.js';
 const wrap = r => new Response(r.body, { status: r.status, headers: { 'content-type': 'application/json', ...cors } });
 
@@ -12,7 +13,7 @@ const json = (o, s = 200) => new Response(JSON.stringify(o), { status: s, header
 const isAdmin = (req, env) => env.ADMIN_TOKEN && req.headers.get('authorization') === 'Bearer ' + env.ADMIN_TOKEN;
 
 export default {
-  async fetch(req, env) {
+  async fetch(req, env, ctx) {
     const url = new URL(req.url);
     if (req.method === 'OPTIONS') return new Response(null, { headers: cors });
     try {
@@ -21,6 +22,27 @@ export default {
       if (url.pathname === '/api/auth/email/start' && req.method === 'POST') return wrap(await emailStart(env, await req.json()));
       if (url.pathname === '/api/auth/email/verify' && req.method === 'POST') return wrap(await emailVerify(env, await req.json()));
       if (url.pathname === '/api/auth/google' && req.method === 'POST') return wrap(await googleLogin(env, await req.json()));
+      const P = url.pathname, M = req.method;
+      if (P === '/api/admin/queue' && M === 'GET') { if (!isAdmin(req, env)) return json({ error: 'not_found' }, 404); return wrap(await C.adminQueue(env)); }
+      if (P === '/api/admin/moderate' && M === 'POST') { if (!isAdmin(req, env)) return json({ error: 'not_found' }, 404); return wrap(await C.adminModerate(env, await req.json())); }
+      if (P === '/api/auth/logout' && M === 'POST') return wrap(await C.logout(env, req));
+      const cm = P.match(/^\/api\/chiddushim\/([\w-]+)\/(audio|transcript|submit|comments|reaction)$/);
+      const cid = P.match(/^\/api\/chiddushim\/([\w-]+)$/);
+      if (P === '/api/chiddushim' || P === '/api/my/chiddushim' || (P === '/api/me' && M === 'DELETE') || (cm && !(cm[2] === 'comments' && M === 'GET')) || (cid && M !== 'OPTIONS')) {
+        const u = await currentUser(env, req);
+        if (!u) return json({ error: 'unauthorized' }, 401);
+        if (P === '/api/chiddushim' && M === 'POST') return wrap(await C.create(env, u, await req.json()));
+        if (P === '/api/my/chiddushim') return wrap(await C.mine(env, u));
+        if (P === '/api/me' && M === 'DELETE') { const r = await adminDeleteUser(env, u.id); return wrap(r); }
+        if (cid && M === 'GET') return wrap(await C.get(env, u, cid[1]));
+        if (cid && M === 'DELETE') return wrap(await C.remove(env, u, cid[1]));
+        if (cm && cm[2] === 'audio' && M === 'PUT') return wrap(await C.upload(env, ctx, u, cm[1], req));
+        if (cm && cm[2] === 'transcript' && M === 'PUT') return wrap(await C.setTranscript(env, u, cm[1], await req.json()));
+        if (cm && cm[2] === 'submit' && M === 'POST') return wrap(await C.submit(env, u, cm[1]));
+        if (cm && cm[2] === 'comments' && M === 'POST') return wrap(await C.addComment(env, u, cm[1], await req.json()));
+        if (cm && cm[2] === 'reaction' && M === 'POST') return wrap(await C.react(env, u, cm[1]));
+      }
+      if (cm && cm[2] === 'comments' && M === 'GET') return wrap(await C.listComments(env, cm[1]));
       if (url.pathname === '/api/me') { const u = await currentUser(env, req); return json(u ? { id: u.id, nickname: u.nickname, role: u.role } : { error: 'unauthorized' }, u ? 200 : 401); }
       if (url.pathname === '/api/catalog/sections') return wrap(await sections(env.DB));
       if (url.pathname === '/api/catalog/books') return wrap(await books(env.DB, url.searchParams.get('section'), url.searchParams.get('q')));

@@ -1,0 +1,15 @@
+name = "petka-tava-api"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+workers_dev = true
+
+[ai]
+binding = "AI"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "petka-tava"
+database_id = "df078032-2862-4563-b8f6-b6f2ddb9fe7c"
+
+[triggers]
+crons = ["17 */6 * * *"]

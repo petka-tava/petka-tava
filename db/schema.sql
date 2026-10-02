@@ -17,3 +17,7 @@ INSERT INTO feature_flags(key,enabled,config_json,updated_at) VALUES
 ('audio_retention',1,'{"days":30}',0),('signups',1,'{}',0);
 CREATE TABLE audio_blobs(chidush_id TEXT PRIMARY KEY REFERENCES chiddushim(id), mime TEXT NOT NULL, bytes INTEGER NOT NULL, seconds INTEGER NOT NULL, data BLOB NOT NULL, expires_at INTEGER NOT NULL);
 CREATE INDEX audio_expiry ON audio_blobs(expires_at);
+CREATE TABLE auth_codes(email TEXT NOT NULL, code_hash TEXT NOT NULL, expires_at INTEGER NOT NULL, tries INTEGER DEFAULT 0, created_at INTEGER NOT NULL);
+CREATE INDEX auth_codes_email ON auth_codes(email, created_at);
+CREATE TABLE sessions(token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), expires_at INTEGER NOT NULL);
+CREATE UNIQUE INDEX users_nick ON users(lower(nickname));

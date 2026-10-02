@@ -10,3 +10,4 @@ Rule (user, 2026-10-02): any external source that requires credit gets proper at
 | Wrangler (dev tool) | Deploy tooling, not shipped to users | Apache-2.0 / MIT | CREDITS.md only |
 | Logo / artwork | Original drawing created for this project | Project-owned | n/a |
 | Fonts | System/serif fallbacks only, no third-party web fonts | n/a | n/a |
+| Google Identity Services (Sign in with Google) | Optional Google sign-in on the frontend | Google APIs Terms https://policies.google.com/terms | credits.html |

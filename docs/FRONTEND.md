@@ -46,3 +46,5 @@ Additional mocked Chrome checks passed for contact payload/limits, mailbox-unava
 - Self-deletion requires a first confirmation and typing the exact confirmation phrase. Server logout must succeed before the tab token is cleared.
 - Mocked content tests passed for failed upload/retry without duplicate draft, raw audio headers/Bearer, polling/edit/save/review/submit, own-status listing, reaction toggle, escaped comments and moderation status, two-stage delete cancellation/success and server logout. Screenshots inspected at desktop/mobile. The live limits endpoint was checked; no real content, comments, reactions, deletions, logout or audio uploads were performed during tests.
 - Privacy copy covers DB audio storage, AI transcription, configurable retention, public nickname/location, comments, deletion and logout.
+
+Google signup permits an empty nickname and omits it from the API payload. A visible notice before the Google button explains the account name becomes the public display name for new accounts; existing accounts retain their nickname. Supplied nicknames still validate at 2..24 characters. Email/manual requirements remain unchanged.

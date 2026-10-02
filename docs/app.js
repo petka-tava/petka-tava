@@ -1,1 +1,110 @@
-try{document.getElementById('hdate').textContent=new Intl.DateTimeFormat('he-u-ca-hebrew',{dateStyle:'long'}).format(new Date())}catch(e){}
+(() => {
+  'use strict';
+  const config = window.PETKA_CONFIG || {};
+  const API = config.apiBase || 'https://petka-tava-api.petka-tava.workers.dev';
+  const $ = id => document.getElementById(id);
+  const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const params = new URLSearchParams(location.search);
+  const page = document.body.dataset.page || 'home';
+  let token = '';
+  try { token = sessionStorage.getItem('petka-session') || ''; } catch {}
+  let user = null;
+  const errors = { bad_email:'כתובת הדוא"ל אינה תקינה.', rate_limited:'נשלחו יותר מדי בקשות. נסו שוב מאוחר יותר.', mail_unavailable:'שליחת הקוד אינה זמינה כרגע. נסו שוב מאוחר יותר.', invalid_code:'הקוד שגוי או שפג תוקפו. בקשו קוד חדש ונסו שוב.', nickname_required:'נדרש כינוי באורך 2 עד 24 תווים.', nickname_taken:'הכינוי כבר תפוס. בחרו כינוי אחר ובקשו קוד חדש.', banned:'הכניסה לחשבון זה אינה זמינה.', invalid_token:'לא ניתן לאמת את הכניסה עם Google. נסו שוב.', unauthorized:'יש להיכנס לחשבון כדי להמשיך.', not_found:'האפשרות אינה זמינה כרגע.', server_error:'אירעה תקלה בשרת. נסו שוב בעוד רגע.' };
+  async function api(path, { method = 'GET', body, auth = false, signal } = {}) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    const headers = {}; if (body) headers['Content-Type'] = 'application/json'; if (auth && token) headers.Authorization = 'Bearer ' + token;
+    try {
+      const response = await fetch(API + path, { method, headers, body:body ? JSON.stringify(body) : undefined, signal:signal || controller.signal });
+      const data = await response.json();
+      if (!response.ok) { const error = new Error(errors[data.error] || 'הפעולה אינה זמינה כרגע. נסו שוב מאוחר יותר.'); error.code = data.error; error.status = response.status; throw error; }
+      return data;
+    } catch (error) { if (error.name === 'AbortError') throw new Error('הבקשה ארכה זמן רב. נסו שוב.'); if (error instanceof TypeError) throw new Error('לא ניתן להתחבר לשרת. בדקו את החיבור ונסו שוב.'); throw error; }
+    finally { clearTimeout(timeout); }
+  }
+  function failure(target, error, retry) {
+    target.innerHTML = `<div class="notice error" role="alert">${esc(error.message)}</div>`;
+    if (retry) { const button = document.createElement('button'); button.className = 'secondary'; button.textContent = 'נסו שוב'; button.onclick = retry; target.append(button); }
+  }
+  function shell() {
+    const links = [['home','index.html','בית'],['catalog','catalog.html','ספרייה'],['feed','feed.html','חידושים'],['my-feed','my-feed.html','הפיד שלי']];
+    $('site-header').innerHTML = `<div class="header-inner"><a class="brand" href="index.html"><img src="logo.svg" alt="" width="52" height="52"><span class="brand-name">פתקא טבא<small>מקום לחידושי תורה</small></span></a><nav class="site-nav" aria-label="ניווט ראשי">${links.map(([key,url,label]) => `<a href="${url}" ${page === key ? 'aria-current="page"' : ''}>${label}</a>`).join('')}<a id="account-link" href="login.html">כניסה</a></nav></div>`;
+    $('site-footer').innerHTML = '<div class="footer-inner"><span>פתקא טבא · by OrelAI</span><div class="footer-links"><a href="credits.html">קרדיטים</a><a href="privacy.html">פרטיות</a><a href="index.html">חזרה לבית</a></div></div>';
+    try { $('hdate').textContent = new Intl.DateTimeFormat('he-IL-u-ca-hebrew', {day:'numeric',month:'long',year:'numeric',timeZone:'Asia/Jerusalem'}).format(new Date()); } catch {}
+  }
+  async function loadUser() {
+    if (!token) return null;
+    try { user = await api('/api/me', {auth:true}); $('account-link').textContent = 'יציאה'; $('account-link').href = '#logout'; $('account-link').onclick = event => { event.preventDefault(); try { sessionStorage.removeItem('petka-session'); } catch {} token=''; user=null; location.assign('index.html'); }; return user; }
+    catch (error) { if (error.status === 401) { token=''; try { sessionStorage.removeItem('petka-session'); } catch {} return null; } throw error; }
+  }
+  function sectionURL(id) { return 'catalog.html?' + new URLSearchParams({section:id}); }
+  function bookURL(book, section) { return 'book.html?' + new URLSearchParams({section, id:book.id, title:book.title_he || book.title_en}); }
+  async function home() {
+    const target = $('sections');
+    const load = async () => { target.innerHTML='<p class="loading" role="status">טוענים את הספרייה…</p>'; try { const sections = await api('/api/catalog/sections'); target.innerHTML = '<div class="section-grid">' + sections.map((s,i) => `<a class="section-card" href="${esc(sectionURL(s.id))}"><span class="number">${String(i+1).padStart(2,'0')}</span><h3>${esc(s.title_he || s.title_en)}</h3><span>לעיון בספרים ←</span></a>`).join('') + '</div>'; } catch (e) {failure(target,e,load);} }; await load();
+  }
+  async function catalog() {
+    const target=$('books'), menu=$('categories');
+    let sections;
+    try { sections=await api('/api/catalog/sections'); } catch(e) { failure(target,e,()=>location.reload()); return; }
+    if (!sections.length) { target.innerHTML='<div class="empty">הספרייה עדיין ריקה.</div>'; return; }
+    const section=params.get('section') || sections[0].id;
+    const selected=sections.find(s=>s.id===section);
+    menu.innerHTML=sections.map(s=>`<a href="${esc(sectionURL(s.id))}" ${s.id===section?'aria-current="true"':''}>${esc(s.title_he||s.title_en)}</a>`).join('');
+    if (!selected) { target.innerHTML='<div class="empty"><h2>המדור לא נמצא</h2><a href="catalog.html">חזרה לספרייה</a></div>'; return; }
+    $('section-title').textContent=selected.title_he || selected.title_en;
+    $('book-search').value=params.get('q') || '';
+    $('search-form').onsubmit=e=>{e.preventDefault();location.assign('catalog.html?'+new URLSearchParams({section,q:$('book-search').value.trim()}));};
+    async function load() {
+      target.innerHTML='<p class="loading" role="status">טוענים ספרים…</p>';
+      try {
+        const books=await api('/api/catalog/books?'+new URLSearchParams({section,q:params.get('q')||''}));
+        $('result-count').textContent=books.length===200?'מוצגים עד 200 ספרים. חפשו לפי שם כדי לצמצם.':`${books.length} ספרים בתוצאות`;
+        target.innerHTML=books.length?'<div class="book-list">'+books.map(b=>`<a class="book-link" href="${esc(bookURL(b,section))}"><h3>${esc(b.title_he||b.title_en)}</h3><small dir="auto">${esc(b.title_en)}</small></a>`).join('')+'</div>':'<div class="empty"><h2>לא נמצאו ספרים</h2><p>נסו שם קצר יותר או חפשו במדור אחר.</p></div>';
+      }catch(e){failure(target,e,load);}
+    } await load();
+  }
+  function date(value) { if (!value) return ''; const parsed=new Date(value); return Number.isNaN(parsed.getTime())?'':parsed.toLocaleDateString('he-IL'); }
+  function renderFeed(items) {
+    return '<div class="feed-list">'+items.map(item=>`<article class="feed-card"><div class="feed-meta"><span>${esc(item.nickname||'')}</span><span>${esc(date(item.published_at))}</span></div><h3>${esc(item.title_he||item.title_en||'חידוש תורה')}</h3>${item.location?`<p class="muted small">${esc(item.location)}</p>`:''}<div class="transcript" dir="auto">${esc(item.transcript||'התמלול אינו זמין.')}</div></article>`).join('')+'</div>';
+  }
+  async function feed(my=false) {
+    const target=$('feed-content');
+    if (my&&!user) { target.innerHTML='<div class="empty"><h2>הפיד שלכם מתחיל כאן</h2><p>היכנסו לחשבון כדי לראות את החידושים המפורסמים, מעבר לטעימה לאורחים.</p><a class="button" href="login.html?next=my-feed.html">כניסה לחשבון</a> <a class="button secondary" href="signup.html">הרשמה</a></div>'; return; }
+    if (my) { $('feed-title').textContent='שלום, '+user.nickname; $('feed-description').textContent='חידושים שפורסמו בקהילה. התאמה אישית של הפיד עדיין אינה זמינה.'; }
+    const load=async()=>{target.innerHTML='<p class="loading" role="status">טוענים חידושים…</p>';try{const result=await api('/api/feed',{auth:my});target.innerHTML=result.items.length?renderFeed(result.items):'<div class="empty"><h2>עוד אין כאן חידושים שפורסמו</h2><p>כשיהיו חידושים מאושרים בקהילה, הם יופיעו כאן.</p><a class="button secondary" href="catalog.html">בינתיים, לספרייה</a></div>';}catch(e){failure(target,e,load);}};await load();
+  }
+  async function book() {
+    const target=$('book-content'),section=params.get('section'),id=params.get('id');
+    if (!section||!id) {target.innerHTML='<div class="empty"><h2>הספר לא נמצא</h2><a href="catalog.html">חזרה לספרייה</a></div>';return;}
+    try {
+      // Resolve through the catalog, never treat the URL title as verified content.
+      const query=params.get('title')||'';
+      const books=await api('/api/catalog/books?'+new URLSearchParams({section,q:query}));
+      const selected=books.find(b=>String(b.id)===id);
+      if(!selected){target.innerHTML='<div class="empty"><h2>לא ניתן למצוא את הספר</h2><p>ייתכן שהקישור השתנה. בחרו את הספר מחדש מתוך הספרייה.</p><a href="catalog.html">חזרה לספרייה</a></div>';return;}
+      document.title=(selected.title_he||selected.title_en)+' - פתקא טבא';
+      target.innerHTML=`<div class="crumbs"><a href="catalog.html">ספרייה</a> / <a href="${esc(sectionURL(section))}">חזרה למדור</a></div><div class="book-header"><p class="eyebrow">מתוך קטלוג ספריא</p><h1>${esc(selected.title_he||selected.title_en)}</h1><p class="muted" dir="auto">${esc(selected.title_en)}</p><div class="actions"><a class="button" href="record.html?${esc(new URLSearchParams({section,id,title:selected.title_he||selected.title_en}).toString())}">הקלטת חידוש</a><a class="button secondary" href="feed.html">לחידושים בקהילה</a></div></div><div class="notice">זהו דף ספר בקטלוג, ולא נוסח הספר עצמו. חידושים לפי ספר ופרסום הקלטות עדיין אינם זמינים.</div><div id="book-limit" class="muted small" role="status">בודקים את מגבלת ההקלטה…</div>`;
+      try {const l=await api('/api/recording/limits');$('book-limit').textContent=l.enabled?`מגבלת הקלטה נוכחית: ${formatSeconds(l.max_seconds)}.`:'אפשרות ההקלטה מושבתת כרגע.';}catch{$('book-limit').textContent='מגבלת ההקלטה אינה זמינה כרגע. ההקלטה תיפתח רק לאחר בדיקה.';}
+    }catch(e){failure(target,e,()=>location.reload());}
+  }
+  function formatSeconds(seconds) {const n=Number(seconds);return n%60===0?`${n/60} דקות`:`${Math.floor(n/60)} דקות ו-${n%60} שניות`;}
+  function authStatus(message, error=false) { const target=$('auth-status');target.textContent=message;target.className='auth-status notice'+(error?' error':'');target.hidden=false; }
+  function nickname() {return $('nickname').value.trim();}
+  function validNick(){const n=nickname();if(n.length<2||n.length>24||/[<>@\/\\]/.test(n)){authStatus(errors.nickname_required,true);$('nickname').focus();return false;}return true;}
+  function signedIn(data) {if(!data.token)throw new Error('לא התקבל אישור כניסה. נסו שוב.');try{sessionStorage.setItem('petka-session',data.token);}catch{throw new Error('יש לאפשר אחסון בדפדפן כדי להיכנס.');} const next=params.get('next');location.assign(['my-feed.html','record.html','catalog.html','feed.html'].includes(next)?next:'my-feed.html');}
+  async function auth() {
+    if(user){$('auth-form-area').innerHTML=`<div class="notice">כבר נכנסתם בתור ${esc(user.nickname)}.</div><a class="button" href="my-feed.html">לפיד שלי</a>`;return;}
+    let email='';
+    $('email-form').onsubmit=async event=>{event.preventDefault();if(page==='signup'&&!validNick())return;const button=$('send-code');button.disabled=true;button.textContent='שולחים…';try{email=$('email').value.trim();await api('/api/auth/email/start',{method:'POST',body:{email}});$('email-form').hidden=true;$('code-form').hidden=false;$('code-email').textContent=email;authStatus('הקוד נשלח. הוא תקף ל-10 דקות. בדקו גם בתיקיית הספאם.');$('code').focus();}catch(e){authStatus(e.message,true);}finally{button.disabled=false;button.textContent='שליחת קוד כניסה';}};
+    $('code-form').onsubmit=async event=>{event.preventDefault();if(nickname()&&!validNick())return;const button=$('verify-code');button.disabled=true;try{const data=await api('/api/auth/email/verify',{method:'POST',body:{email,code:$('code').value.trim(),nickname:nickname()}});signedIn(data);}catch(e){authStatus(e.message,true);if(['nickname_required','nickname_taken'].includes(e.code)){$('nickname').focus();authStatus(e.message+' לאחר בחירת כינוי יש לבקש קוד חדש.',true);}}finally{button.disabled=false;}};
+    $('change-email').onclick=()=>{$('code-form').hidden=true;$('email-form').hidden=false;$('code').value='';$('auth-status').hidden=true;$('email').focus();};
+    if(!config.googleClientId){$('google-unavailable').hidden=false;return;}
+    const script=document.createElement('script');script.src='https://accounts.google.com/gsi/client';script.async=true;script.defer=true;
+    script.onload=()=>{try{google.accounts.id.initialize({client_id:config.googleClientId,auto_select:false,callback:async result=>{if(page==='signup'&&!validNick())return;authStatus('מאמתים את הכניסה…');try{signedIn(await api('/api/auth/google',{method:'POST',body:{id_token:result.credential,nickname:nickname()}}));}catch(e){authStatus(e.message,true);if(e.code==='nickname_required')$('nickname').focus();}}});google.accounts.id.renderButton($('google-button'),{type:'standard',theme:'outline',size:'large',text:'continue_with',locale:'he',width:320});}catch{$('google-unavailable').hidden=false;}};
+    script.onerror=()=>{$('google-unavailable').hidden=false;};document.head.append(script);
+  }
+  shell();
+  window.Petka={api,formatSeconds};
+  (async()=>{try{await loadUser();}catch(e){if(['my-feed','login','signup'].includes(page)){failure($('page-status'),e,()=>location.reload());return;}}if(page==='home')await home();if(page==='catalog')await catalog();if(page==='book')await book();if(page==='feed'||page==='my-feed')await feed(page==='my-feed');if(page==='login'||page==='signup')await auth();})().catch(e=>failure($('page-status'),e));
+})();

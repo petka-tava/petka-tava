@@ -29,3 +29,11 @@ The current server returns a signed management link from /api/me/extras only aft
 ## Re-run
 
 `tests/ui-state-check.cjs` is the reproducible screen-state check. It uses test-only Playwright (install outside the app, or set NODE_PATH) and Chrome at `/usr/bin/google-chrome`. Run with Node. It serves docs locally, mocks all account/content calls, writes selected screenshots to /tmp, and performs no production mutations. No test package is shipped to visitors.
+
+## Flow + content-only library UI (2026-10-02, held for backend release)
+
+Changes: direct record/read home CTAs, persistent record/help navigation, member home copy, content-only library API browsing, content=1 search with real cursor batches, book/daf pages and contextual feed links, own-content workspace, separate account page, citation-only optional picker with server shorthand parsing and confirmation chip, source selector for Bavli, identity-first login, return context across auth paths, completion states.
+
+Test: `dev/tests/flow-library.cjs` using Playwright and Chrome. Independent guest/member mocks, 11 pages at 390/1440, no page exceptions or horizontal overflow; pending submission completion; email login preserves selected book/daf/amud; rejected unsafe/looping return targets; real cursor UI batching; missing-amud choice buttons; out-of-range daf message removes confirmation; shorthand match chip; clear association; header help dialog. Syntax and git whitespace checks pass. API responses are mocked against the backend contract, not production end-to-end testing. New backend release must be live before merge/deploy. No live writes or migration run by frontend.
+
+Visual inspection: rendered mobile member home, recorder, daf and own-workspace, plus desktop home. All use real Chrome pixels. No published management code or QA files; those remain in dev/. Optional account.html is included in the same-site return allowlist so account actions can resume after login.

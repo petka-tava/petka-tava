@@ -77,3 +77,8 @@ Permanent rule (owner, 2/10): whenever anything goes wrong in a build (security 
 - Issue: feed cards repeated the citation line; Hebrew labels could show ASCII quotes (ב' ע"ב, דוא"ל); the contact dialog had a horizontal scrollbar (textarea wider than the dialog); login fields were tight; a daf link with wrong parameters showed the generic "not available" error.
 - Fix: one citation line per card; display text converts ASCII quotes between Hebrew letters to ״ ׳ and the site labels use them; the dialog fields are border-box; login spacing added; an invalid or empty daf shows a clear "page not found, or no chiddushim yet" state with links to the library and recording.
 - Prevention: the 390px and GUI pass checks card text for duplicates, the contact dialog for scrollbars, and one bad-parameter link per detail page.
+
+## Daf field was numeric-only on phones
+- Issue: the record picker's daf field promised "a letter or a number" but used a numeric keyboard, so a Hebrew daf such as ב or ס״ד could not be typed on a phone.
+- Fix: the field uses the normal text keyboard (Hebrew), accepts letters, gershayim and digits (up to 8 characters), and the placeholder lists all forms. The server parser already handled ב, ס״ד, 2 and 108 (checked on all four).
+- Prevention: input type and keyboard hints must match the placeholder and the parser. The GUI pass types a Hebrew daf and a numeric daf on a phone-size screen.

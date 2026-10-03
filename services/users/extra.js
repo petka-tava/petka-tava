@@ -52,6 +52,10 @@ export async function takePending(env, email) {
   if (p) await env.DB.prepare('DELETE FROM pending_regs WHERE email=?').bind(email).run();
   return p;
 }
+export async function peekPending(env, email) {
+  await ensureSchema(env.DB);
+  return env.DB.prepare('SELECT nickname,phone_hash FROM pending_regs WHERE email=?').bind(email).first();
+}
 export async function savePhone(env, userId, hash) {
   if (hash) await env.DB.prepare('INSERT OR REPLACE INTO user_private(user_id,phone_hash) VALUES(?,?)').bind(userId, hash).run();
 }

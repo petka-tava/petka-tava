@@ -57,3 +57,18 @@ Permanent rule (owner, 2/10): whenever anything goes wrong in a build (security 
 - Fix: audit of every site button/link and every setting. All site controls are wired and no link is dead. Every setting is read by server code except Shabbat mode, which now says so on screen until the owner chooses what to build. Two enforced features that had no setting (transcription cap, guest taste) now have one.
 - Guideline (permanent, all projects): never ship mock-up or dead buttons, toggles or settings. Anything visible is fully working or does not exist, unless the owner explicitly asked for or approved a placeholder.
 - Prevention: before each release, check every visible control against its server-side or handler code.
+
+## Email code burned when the nickname was missing (found in GUI QA)
+- Issue: a new user who entered a correct email code but no nickname got "wrong or expired code", and the code was already consumed. They had to request another one.
+- Fix: the code is checked without being consumed. If the account is new and the nickname is missing, the server returns nickname_required, refunds the try and keeps the code. It is consumed only after the nickname is valid.
+- Prevention: validate every required field before spending a one-time credential. The QA login test now covers the new-account-without-nickname path in the GUI.
+
+## Login return target dropped for Hebrew book titles (found in GUI QA)
+- Issue: starting login from a book page lost the return target and landed on "my feed". The return-target allow-list accepted ASCII only, and book links carry a Hebrew title.
+- Fix: the allow-list also accepts Hebrew letters in the query string. Still only whitelisted local pages, no scheme, no host, no slashes.
+- Prevention: the return-target test uses a Hebrew title, and QA starts login from a book page as a guest.
+
+## Guest-taste banner shown when nothing was hidden (found in GUI QA)
+- Issue: the daf page said "a taste is shown to guests" even when every published item was visible.
+- Fix: the banner appears only when fewer items are returned than exist.
+- Prevention: any "limited view" notice must be tied to an actual limit being applied.

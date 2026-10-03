@@ -1,6 +1,6 @@
 import { requireFlag, getFlag } from '../admin/flags.js';
 import { sendMail } from '../notifications/gmail.js';
-import { takePending, savePhone } from './extra.js';
+import { takePending, peekPending, savePhone } from './extra.js';
 const json = (o, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { 'content-type': 'application/json' } });
 const hex = buf => [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
 const sha = async s => hex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)));
@@ -43,13 +43,15 @@ export async function emailVerify(env, body) {
   if (!row || row.expires_at < Date.now() || row.tries >= 5) return json({ error: 'invalid_code' }, 400);
   await env.DB.prepare('UPDATE auth_codes SET tries=tries+1 WHERE rowid=?').bind(row.rowid).run();
   if (row.code_hash !== await sha(email + ':' + String(body.code || '').trim())) return json({ error: 'invalid_code' }, 400);
-  await env.DB.prepare('DELETE FROM auth_codes WHERE email=?').bind(email).run();
   let u = await env.DB.prepare('SELECT id,banned FROM users WHERE email=?').bind(email).first();
-  if (u?.banned) return json({ error: 'banned' }, 403);
+  if (u?.banned) { await env.DB.prepare('DELETE FROM auth_codes WHERE email=?').bind(email).run(); return json({ error: 'banned' }, 403); }
   if (!u) {
-    const pend = await takePending(env, email);
+    const pend = await peekPending(env, email);
     const nick = pend?.nickname ?? body.nickname;
-    if (!validNick(nick)) return json({ error: 'nickname_required' }, 400);
+    // A correct code is kept (and the failed try refunded) until the nickname is valid, so the person is not forced to request a new code.
+    if (!validNick(nick)) { await env.DB.prepare('UPDATE auth_codes SET tries=tries-1 WHERE rowid=?').bind(row.rowid).run(); return json({ error: 'nickname_required' }, 400); }
+    await env.DB.prepare('DELETE FROM auth_codes WHERE email=?').bind(email).run();
+    await takePending(env, email);
     const id = crypto.randomUUID();
     try { await env.DB.prepare("INSERT INTO users(id,email,nickname,auth_kind,created_at) VALUES(?,?,?,?,?)").bind(id, email, nick.trim(), pend ? 'manual' : 'email', Date.now()).run(); }
     catch { return json({ error: 'nickname_taken' }, 409); }

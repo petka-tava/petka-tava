@@ -72,3 +72,8 @@ Permanent rule (owner, 2/10): whenever anything goes wrong in a build (security 
 - Issue: the daf page said "a taste is shown to guests" even when every published item was visible.
 - Fix: the banner appears only when fewer items are returned than exist.
 - Prevention: any "limited view" notice must be tied to an actual limit being applied.
+
+## Five cosmetic leftovers from GUI QA
+- Issue: feed cards repeated the citation line; Hebrew labels could show ASCII quotes (ב' ע"ב, דוא"ל); the contact dialog had a horizontal scrollbar (textarea wider than the dialog); login fields were tight; a daf link with wrong parameters showed the generic "not available" error.
+- Fix: one citation line per card; display text converts ASCII quotes between Hebrew letters to ״ ׳ and the site labels use them; the dialog fields are border-box; login spacing added; an invalid or empty daf shows a clear "page not found, or no chiddushim yet" state with links to the library and recording.
+- Prevention: the 390px and GUI pass checks card text for duplicates, the contact dialog for scrollbars, and one bad-parameter link per detail page.

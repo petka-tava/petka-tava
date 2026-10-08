@@ -3,3 +3,11 @@ node_modules/
 *.log
 INCIDENTS.md
 dev/QA.md
+
+# internal planning notes stay private (see scripts/publish-guard.sh)
+DECISIONS*.md
+FRONTEND*.md
+INCIDENTS*.md
+QA*.md
+dev/*.md
+notes/
